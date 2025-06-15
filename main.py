@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import List, Optional
 from database import SessionLocal, engine
-from models import User, Project, Task, Board, Base
+from models import User, Project, Task, Board, Base, ProjectMemberAdd
 from auth import verify_password, get_password_hash, create_access_token, oauth2_scheme
 from websocket_manager import manager
 from dotenv import load_dotenv
@@ -148,9 +148,9 @@ def get_projects(db: Session = Depends(get_db)):
     return db.query(Project).all()
 
 @app.post("/projects/{project_id}/members")
-def add_project_member(project_id: int, user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def add_project_member(project_id: int, member: ProjectMemberAdd, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     project = db.query(Project).filter(Project.id == project_id).first()
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter(User.id == member.user_id).first()
     if not project or not user:
         raise HTTPException(status_code=404, detail="Project or user not found")
     if user in project.members:
@@ -183,7 +183,7 @@ def create_task(task: TaskCreate, db: Session = Depends(get_db), current_user: U
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
-    redis_client.publish("task_updates", f"New task: {db_task.title}")
+    redis_client.publish(f"task_updates:{db_task.project_id}", f"New task: {db_task.title}")
     return db_task
 
 @app.get("/tasks", response_model=List[TaskOut])
@@ -195,7 +195,10 @@ def get_tasks(
         priority: Optional[str] = None,
         assigned_user_id: Optional[int] = None,
         sort_by: Optional[str] = Query(None, regex="^(due_date|priority|created_at)$"),
-        sort_order: Optional[str] = Query("asc", regex="^(asc|desc)$")
+        sort_order: Optional[str] = Query("asc", regex="^(asc|desc)$"),
+        limit: int = Query(20, ge=1, le=100),
+        offset: int = Query(0, ge=0),
+        search: Optional[str] = None
 ):
     query = db.query(Task)
     if completed is not None:
@@ -208,10 +211,12 @@ def get_tasks(
         query = query.filter(Task.priority == priority)
     if assigned_user_id:
         query = query.filter(Task.assigned_user_id == assigned_user_id)
+    if search:
+        query = query.filter(Task.title.ilike(f"%{search}%") | Task.description.ilike(f"%{search}%"))
     if sort_by:
         column = getattr(Task, sort_by)
         query = query.order_by(column.desc() if sort_order == "desc" else column.asc())
-    return query.all()
+    return query.offset(offset).limit(limit).all()
 
 @app.patch("/tasks/{task_id}", response_model=TaskOut)
 def patch_task(task_id: int, fields: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -223,7 +228,7 @@ def patch_task(task_id: int, fields: dict = Body(...), db: Session = Depends(get
             setattr(db_task, key, value)
     db.commit()
     db.refresh(db_task)
-    redis_client.publish("task_updates", f"Task updated: {db_task.title}")
+    redis_client.publish(f"task_updates:{db_task.project_id}", f"Task updated: {db_task.title}")
     return db_task
 
 
@@ -236,7 +241,7 @@ def update_task(task_id: int, task: TaskCreate, db: Session = Depends(get_db)):
         setattr(db_task, field, value)
     db.commit()
     db.refresh(db_task)
-    redis_client.publish("task_updates", f"Task updated: {db_task.title}")
+    redis_client.publish(f"task_updates:{db_task.project_id}", f"Task updated: {db_task.title}")
     return db_task
 
 @app.put("/tasks/{task_id}/toggle")
@@ -246,7 +251,7 @@ def toggle_completion(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Task not found")
     db_task.completed = not db_task.completed
     db.commit()
-    redis_client.publish("task_updates", f"Task status changed: {db_task.title} -> {db_task.completed}")
+    redis_client.publish(f"task_updates:{db_task.project_id}", f"Task status changed: {db_task.title} -> {db_task.completed}")
     return {"id": db_task.id, "completed": db_task.completed}
 
 @app.delete("/tasks/{task_id}")
@@ -256,15 +261,15 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Task not found")
     db.delete(db_task)
     db.commit()
-    redis_client.publish("task_updates", f"Task deleted: {db_task.title}")
+    redis_client.publish(f"task_updates:{db_task.project_id}", f"Task deleted: {db_task.title}")
     return {"detail": "Task deleted"}
 
 # WebSocket endpoint for real-time updates
-@app.websocket("/ws/{user_id}")
-async def websocket_endpoint(websocket: WebSocket, user_id: int):
-    await manager.connect(websocket)
+@app.websocket("/ws/{user_id}/{project_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: int, project_id: int):
+    await manager.connect(websocket, project_id)
     pubsub = redis_client.pubsub()
-    pubsub.subscribe("task_updates")
+    pubsub.subscribe(f"task_updates:{project_id}")
 
     async def listen_to_redis():
         for message in pubsub.listen():
@@ -275,14 +280,30 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
     try:
         while True:
             client_message = await websocket.receive_text()
-            await manager.broadcast(f"Client {user_id}: {client_message}")
+            await manager.broadcast(project_id, f"Client {user_id}: {client_message}")
     except Exception as e:
-        print(f"WebSocket error: {e}")
         logger.error(f"WebSocket error: {e}")
     finally:
         redis_task.cancel()
         manager.disconnect(websocket)
         pubsub.close()
+
+@app.get("/user/data-export")
+def export_user_data(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user_data = {
+        "username": current_user.username,
+        "role": current_user.role,
+        "projects": [p.name for p in current_user.projects],
+        "tasks": [
+            {
+                "title": task.title,
+                "due_date": task.due_date,
+                "completed": task.completed
+            }
+            for task in db.query(Task).filter(Task.assigned_user_id == current_user.id)
+        ]
+    }
+    return user_data
 
 # Manual trigger for Celery reminder (for testing only)
 @app.post("/reminders/run")

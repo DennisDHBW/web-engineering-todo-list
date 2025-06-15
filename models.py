@@ -1,6 +1,10 @@
 from datetime import datetime, timezone
+
+from pydantic import BaseModel
 from sqlalchemy import Table, Column, Integer, String, ForeignKey, Boolean, DateTime
+from sqlalchemy import Enum as SQLAEnum
 from sqlalchemy.orm import relationship
+import enum
 from database import Base
 
 class User(Base):
@@ -15,6 +19,9 @@ class Project(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
     owner_id = Column(Integer, ForeignKey("users.id"))
+
+class ProjectMemberAdd(BaseModel):
+    user_id: int
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -36,10 +43,16 @@ class Board(Base):
     project_id = Column(Integer, ForeignKey("projects.id"))
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
+class ProjectRole(enum.Enum):
+    owner = "owner"
+    editor = "editor"
+    viewer = "viewer"
+
 project_members = Table(
     "project_members", Base.metadata,
     Column("user_id", Integer, ForeignKey("users.id")),
-    Column("project_id", Integer, ForeignKey("projects.id"))
+    Column("project_id", Integer, ForeignKey("projects.id")),
+    Column("role", SQLAEnum(ProjectRole), default=ProjectRole.viewer)
 )
 
 Project.members = relationship("User", secondary=project_members, backref="projects")
