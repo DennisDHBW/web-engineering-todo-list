@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from app.models import User
+from app.models import User, Project
 from app.schemas import auth_schema as auth_schema
 from app.db.database import get_db
 from app.services import auth_service as auth_service
@@ -29,6 +29,9 @@ def get_me(user=Depends(auth_service.get_current_user)):
 def delete_current_user(user=Depends(auth_service.get_current_user), db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.id == user.id).first()
     if db_user:
+        projects = db.query(Project).filter(Project.owner_id == user.id).all()
+        if projects:
+            raise HTTPException(status_code=400, detail="User is owner of one or more projects and cannot be deleted.")
         db.delete(db_user)
         db.commit()
         return {"message": "User deleted"}

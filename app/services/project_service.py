@@ -10,8 +10,8 @@ from app.models.project_model import Project
 from app.models.user_model import User
 from app.schemas.project_schema import ProjectCreate, ProjectMemberAdd
 
-def create_project(project: ProjectCreate, db: Session) -> Project:
-    db_project = Project(**project.model_dump())
+def create_project(project: ProjectCreate, db: Session, user: User) -> Project:
+    db_project = Project(name=project.name, owner_id=user.id)
     db.add(db_project)
     db.commit()
     db.refresh(db_project)
@@ -20,6 +20,7 @@ def create_project(project: ProjectCreate, db: Session) -> Project:
 def get_all_projects(db: Session) -> list[Type[Project]]:
     return db.query(Project).all()
 
+# Adds a user to the project. Prevents duplicates and checks existence of user and project.
 def add_member(project_id: int, member: ProjectMemberAdd, db: Session, user: User):
     project = db.query(Project).filter(Project.id == project_id).first()
     target_user = db.query(User).filter(User.id == member.user_id).first()

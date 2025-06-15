@@ -10,6 +10,7 @@ class Token(BaseModel):
 class UserCreate(BaseModel):
     username: str
     password: str
+    role: str = "user"
 
 class UserMe(BaseModel):
     id: int
