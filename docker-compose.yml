@@ -31,7 +31,7 @@ services:
 
   worker:
     build: .
-    command: celery -A celery_worker.celery_app worker --loglevel=info
+    command: celery -A app.celery.worker worker --loglevel=info
     env_file:
       - .env
     depends_on:
@@ -39,7 +39,7 @@ services:
       - db
   beat:
     build: .
-    command: celery -A tasks.celery_app beat --loglevel=info
+    command: celery -A app.celery.beat beat --loglevel=info
     env_file:
       - .env
     depends_on:
