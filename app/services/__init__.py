@@ -1,3 +1,3 @@
-from . import auth, project, reminders, task
+from . import auth_service, project_service, reminders_service, task_service
 
-__all__ = ["auth", "project", "reminders", "task"]
+__all__ = ["auth_service", "project_service", "reminders_service", "task_service"]

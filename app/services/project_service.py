@@ -1,11 +1,14 @@
-from typing import Type
+# TODO: Integrate email notifications for due or assigned tasks
+# This could be achieved by sending asynchronous emails via SMTP or using an external service like Mailgun or SendGrid,
+# triggered inside Celery tasks.
 
+
+from typing import Type
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-
-from app.models.project import Project
-from app.models.user import User
-from app.schemas.project import ProjectCreate, ProjectMemberAdd
+from app.models.project_model import Project
+from app.models.user_model import User
+from app.schemas.project_schema import ProjectCreate, ProjectMemberAdd
 
 def create_project(project: ProjectCreate, db: Session) -> Project:
     db_project = Project(**project.model_dump())

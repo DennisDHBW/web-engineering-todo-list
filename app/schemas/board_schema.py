@@ -1,3 +1,6 @@
+# board_schema use `from_attributes = True` for ORM compatibility.
+# This enables fast conversion between SQLAlchemy models and JSON-compatible objects.
+
 from datetime import datetime
 from pydantic import BaseModel
 

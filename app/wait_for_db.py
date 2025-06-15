@@ -1,3 +1,6 @@
+# Waits for PostgreSQL to be ready before FastAPI starts.
+# Useful for containerized startup synchronization.
+
 import time
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError

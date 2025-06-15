@@ -1,6 +1,12 @@
-from pydantic import BaseSettings
+# Centralized settings management via Pydantic ensures environment portability and cleaner configuration handling.
+
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
+    # Central configuration class loading variables from .env
+    postgres_user: str
+    postgres_password: str
+    postgres_db: str
     DATABASE_URL: str
     REDIS_URL: str
     SECRET_KEY: str

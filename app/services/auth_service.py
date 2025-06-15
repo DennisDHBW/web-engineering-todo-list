@@ -1,14 +1,17 @@
-from typing import Type
+# TODO: Implement two-factor authentication (2FA)
+# This could be added using libraries such as PyOTP and QR code generation (e.g. using qrcode).
+# 2FA tokens would be verified during login alongside the password.
 
+from typing import Type
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.models.user import User
+from app.models.user_model import User
 from app.core.config import settings
 from app.core.security import verify_password, hash_password, create_access_token
-from app.schemas.user import UserCreate
+from app.schemas.user_schema import UserCreate
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 

@@ -1,3 +1,7 @@
+# SessionLocal is created once per request using dependency injection.
+# This avoids global sessions and ensures proper DB connection management.
+
+
 import os
 from typing import Any, Generator
 

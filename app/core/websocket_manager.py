@@ -1,3 +1,6 @@
+# ConnectionManager keeps track of WebSocket connections grouped by project.
+# In a future update, support for per-user or per-board channels could be added.
+
 from fastapi import WebSocket
 from collections import defaultdict
 from typing import List

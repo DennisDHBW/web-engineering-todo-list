@@ -7,6 +7,7 @@ celery_app = Celery(
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND
 )
+celery_app.conf.beat_schedule_filename = "beat-data/celerybeat-schedule"
 
 # Tasks aus reminder importieren
 celery_app.autodiscover_tasks([

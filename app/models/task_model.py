@@ -15,3 +15,13 @@ class Task(Base):
     priority = Column(String, default="medium")
     assigned_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
+
+class TaskComment(Base):
+    __tablename__ = "task_comments"
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    content = Column(String)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.schemas import board as board_schema
-from app.models.board import Board
+from app.schemas import board_schema as board_schema
+from app.models.board_model import Board
 
 router = APIRouter()
 

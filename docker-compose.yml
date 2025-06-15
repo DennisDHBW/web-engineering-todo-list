@@ -1,3 +1,7 @@
+# This setup is suitable for local development and early-stage deployments.
+# TODO: For production, consider Kubernetes or a managed container platform for auto-scaling and rolling updates.
+
+
 services:
   app:
     build: .
@@ -8,9 +12,11 @@ services:
         condition: service_healthy
     env_file:
       - .env
+    environment:
+      - PYTHONPATH=/app:/app/app
     volumes:
       - .:/code
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    command: bash -c "cd app && python wait_for_db.py && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
 
   db:
     image: postgres
@@ -31,7 +37,7 @@ services:
 
   worker:
     build: .
-    command: celery -A app.celery.worker worker --loglevel=info
+    command: celery --app=app.celery_app.worker:celery_app worker --loglevel=info
     env_file:
       - .env
     depends_on:
@@ -39,9 +45,14 @@ services:
       - db
   beat:
     build: .
-    command: celery -A app.celery.beat beat --loglevel=info
+    command: celery --app=app.celery_app.beat:celery_app beat --loglevel=info
     env_file:
       - .env
     depends_on:
       - redis
       - db
+    volumes:
+      - ./beat-data:/app/beat-data
+    working_dir: /app
+    environment:
+      - CELERY_BEAT_SCHEDULE_FILENAME=beat-data/celerybeat-schedule
