@@ -1,0 +1,45 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/todoapp
+    volumes:
+      - .:/code
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+
+  db:
+    image: postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: todoapp
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "user", "-d", "todoapp" ]
+      interval: 1s
+      timeout: 1s
+      retries: 10
+
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+
+  worker:
+    build: .
+    command: celery -A celery_worker.celery_app worker --loglevel=info
+    depends_on:
+      - redis
+      - db
+  beat:
+    build: .
+    command: celery -A tasks.celery_app beat --loglevel=info
+    depends_on:
+      - redis
+      - db
