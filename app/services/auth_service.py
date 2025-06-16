@@ -6,22 +6,23 @@ from typing import Type
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.db.database import get_db
 from app.models.user_model import User
 from app.core.config import settings
 from app.core.security import verify_password, hash_password, create_access_token
 from app.schemas.user_schema import UserCreate
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
+# Decodes the JWT and retrieves the current authenticated user.
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Type[User]:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=401, detail="Invalid token")
-        user = db.query(User).filter(User.username == username).first()
+        user = db.query(User).options(joinedload(User.projects)).filter(User.username == username).first()
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
         return user

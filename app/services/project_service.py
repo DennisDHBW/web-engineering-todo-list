@@ -12,6 +12,7 @@ from app.schemas.project_schema import ProjectCreate, ProjectMemberAdd
 
 def create_project(project: ProjectCreate, db: Session, user: User) -> Project:
     db_project = Project(name=project.name, owner_id=user.id)
+    db_project.members.append(user)
     db.add(db_project)
     db.commit()
     db.refresh(db_project)

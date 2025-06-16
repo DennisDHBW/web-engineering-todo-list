@@ -14,7 +14,7 @@ celery_app.autodiscover_tasks([
     "app.services.reminders"
 ])
 
-# Beat-Schedule definieren
+# This daily Celery beat task ensures users get timely notifications for due tasks.2
 celery_app.conf.beat_schedule = {
     "daily_reminder": {
         "task": "app.services.reminders.send_reminders",

@@ -32,6 +32,7 @@ def send_reminders():
         # Push reminder messages to Redis Pub/Sub so WebSocket clients get notified immediately.
         # Can be extended to trigger email or push notifications.
         redis_client.publish(f"task_updates:{task.project_id}", str(message))
+    # Each reminder is pushed to Redis so connected clients can get live notifications.
 
     db.close()
     return f"Sent {len(due_tasks)} reminders"

@@ -4,6 +4,7 @@ from app.db.database import Base, engine
 from app.api import auth_api, user_api, project_api, board_api, task_api
 from app.core.websocket import websocket_endpoint
 
+#Base.metadata.drop_all(bind=engine) # clear database
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Todo API")

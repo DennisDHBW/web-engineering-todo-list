@@ -18,9 +18,12 @@ def list_all(db: Session = Depends(get_db)):
     return get_all_projects(db)
 
 @router.get("/me", response_model=list[project_schema.ProjectOut])
-# Returns all projects where the user is a member
-def get_my_projects(user=Depends(get_current_user)):
-    return user.projects
+# Returns all projects where the user is owner or member
+def get_my_projects(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    owned = db.query(Project).filter(Project.owner_id == user.id)
+    member_of = db.query(Project).join(Project.members).filter(User.id == user.id)
+    all_projects = owned.union(member_of)
+    return all_projects.all()
 
 @router.post("/{project_id}/members")
 def add_project_member(

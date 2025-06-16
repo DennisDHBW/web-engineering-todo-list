@@ -10,6 +10,7 @@ from app.db.database import Base
 from sqlalchemy import Enum as SQLAEnum
 from app.models.enums_model import ProjectRole
 
+# This association table supports role-based access control (RBAC) for collaborative project features.
 project_members = Table(
     "project_members", Base.metadata,
     Column("user_id", Integer, ForeignKey("users.id")),
@@ -27,4 +28,4 @@ class Project(Base):
 
     # Members relationship allows many-to-many user-project bindings with custom roles (RBAC ready).
     # Useful for controlling access levels (e.g., owner, editor, viewer).
-    members = relationship("User", secondary=project_members, backref="projects")
+    members = relationship("User", secondary=project_members, back_populates="projects")
